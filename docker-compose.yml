@@ -1,0 +1,22 @@
+# Desenvolvimento local: apenas o PostgreSQL em container.
+# Frontend e backend rodam nativamente (ver README.md).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nail-studio-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nail_studio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nail_studio}
+      POSTGRES_DB: ${POSTGRES_DB:-nail_studio}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nail_studio} -d ${POSTGRES_DB:-nail_studio}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

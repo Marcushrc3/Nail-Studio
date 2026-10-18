@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Ambiente e segredos (nunca versionar .env)
+.env
+.env.*
+!.env.example
+
+# Sistema operacional
+Thumbs.db
+.DS_Store
+
+# Interno do editor
+.deep-copilot/

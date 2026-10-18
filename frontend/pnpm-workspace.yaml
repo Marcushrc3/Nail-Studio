@@ -1,0 +1,4 @@
+# Scripts de build permitidos (pnpm 12+). Apenas o esbuild,
+# necessário para o Vite/Vitest.
+allowBuilds:
+  esbuild: true
