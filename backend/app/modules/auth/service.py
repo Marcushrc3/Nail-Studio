@@ -267,37 +267,31 @@ def refresh(
             reset_user_context(user_token)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=SESSION_INVALID_DETAIL)
 
-    # Rotação: expiração absoluta da família NÃO é estendida.
-    # Ordem importa: o novo token precisa existir antes de referenciado
-    # por replaced_by (FK).
+    # Rotação ATÔMICA no banco (função definer): só o primeiro request que
+    # encontrar a linha não-rotacionada vence; concorrentes recebem false e
+    # caem no caminho de reuso (família revogada). Não depende de contexto.
     session.commit()
-    user_token = set_user_context(str(row["user_id"]))
-    try:
-        new_id = uuid4()
-        new_raw, new_hash = generate_refresh_token()
-        session.execute(
-            text(
-                "INSERT INTO refresh_tokens (id, user_id, token_hash, family_id, expires_at) "
-                "VALUES (:id, :user_id, :token_hash, :family_id, :expires_at)"
-            ),
-            {
-                "id": str(new_id),
-                "user_id": str(row["user_id"]),
-                "token_hash": new_hash,
-                "family_id": row["family_id"],
-                "expires_at": row["expires_at"],
-            },
-        )
-        session.execute(
-            text(
-                "UPDATE refresh_tokens SET revoked_at = now(), replaced_by = :new_id "
-                "WHERE id = :old_id"
-            ),
-            {"new_id": str(new_id), "old_id": row["id"]},
-        )
-        session.commit()
-    finally:
-        reset_user_context(user_token)
+    new_id = uuid4()
+    new_raw, new_hash = generate_refresh_token()
+    rotated = session.execute(
+        text("SELECT auth_rotate_refresh_token(:old_id, :new_id, :new_hash)"),
+        {"old_id": row["id"], "new_id": str(new_id), "new_hash": new_hash},
+    ).scalar_one()
+    session.commit()
+    if not rotated:
+        user_token = set_user_context(str(row["user_id"]))
+        try:
+            session.execute(
+                text(
+                    "UPDATE refresh_tokens SET revoked_at = now() "
+                    "WHERE family_id = :family_id AND revoked_at IS NULL"
+                ),
+                {"family_id": row["family_id"]},
+            )
+            session.commit()
+        finally:
+            reset_user_context(user_token)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=SESSION_INVALID_DETAIL)
 
     access_token = create_access_token(
         subject=str(row["user_id"]),

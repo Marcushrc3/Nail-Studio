@@ -18,6 +18,10 @@
 - **Sessões**: refresh opaco (SHA-256 no banco), família com expiração **fixa** de
   30 dias, rotação com `revoked_at`/`replaced_by`, reuso detectado → **família
   inteira revogada**; logout (sessão) e logout-all (todas).
+- **Rotação atômica** (migration `08c82a1202be`): a troca é feita pela definer
+  `auth_rotate_refresh_token` (UPDATE condicionado a `revoked_at IS NULL` — um
+  único vencedor; perdedores caem no caminho de reuso → família revogada).
+  FK `replaced_by` tornada `DEFERRABLE` para permitir UPDATE-then-INSERT.
 - **Cookies**: refresh em `HttpOnly; SameSite=Lax; Path=/api/v1/auth`, `Secure`
   somente em produção; access token apenas no corpo (memória no frontend).
 - **Rate limiting**: slowapi em memória (1 instância — limitação documentada):
@@ -38,4 +42,6 @@
 
 - Rate limit em memória: válido para uma instância (multi-instância exige
   backend compartilhado — decisão futura).
+- Concorrência validada com `TestClient` em threads (Barrier determinístico);
+  não testada sob rede real/multi-instância.
 - Recuperação de senha: E1.3. SMTP real: E1.4. Frontend: E1.5.

@@ -94,5 +94,5 @@ def test_upgrade_downgrade_upgrade_and_schema_smoke(scratch_db_url: str) -> None
     smoke.dispose()
     assert tables == 7  # 6 tabelas de negócio + alembic_version
     assert policies == 12
-    assert functions == 5
-    assert version == "c20d386c8723"
+    assert functions == 6
+    assert version == "08c82a1202be"

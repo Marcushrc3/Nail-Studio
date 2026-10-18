@@ -10,17 +10,26 @@ Sem frontend ainda (E1.5).
 | Correções da auditoria (colunas sensíveis, PUBLIC, default privileges, role sem privilégios) | ✅ | migration `c20d386c8723` + `tests/db/test_db_privileges.py` |
 | JWT hardening (claims, iss/aud, iat, alg whitelist) | ✅ | `tests/test_security.py` (11 testes JWT) |
 | Signup atômico + verificação + login + refresh rotativo + reuso revoga família + logout/logout-all | ✅ | `tests/auth/test_auth_flows.py` |
+| Rotação atômica de refresh (definer `auth_rotate_refresh_token`, FK deferível) | ✅ | migration `08c82a1202be` + `tests/db/test_definer_functions.py` |
+| Concorrência: refresh simultâneo tem vencedor único; sem sessões clonadas; logout vs refresh | ✅ | `tests/auth/test_concurrency.py` (5 testes, Barrier determinístico) |
 | Anti-enumeração (respostas uniformes, dummy hash) | ✅ | testes de duplicata/login desconhecido |
 | Rate limiting (slowapi) | ✅ | `tests/auth/test_rate_limit.py` |
 | FakeEmailProvider (sem SMTP real) | ✅ | `app/core/email.py` + testes |
-| Suíte completa | ✅ | **72 passed**, exit 0 (API testada como `app_runtime`) |
-| Gates | ✅ | `ruff` 0 · `ruff format --check` 46 arquivos · `mypy` limpo (20 arquivos) |
+| Suíte completa | ✅ | **77 passed**, exit 0 (API testada como `app_runtime`) |
+| Gates | ✅ | `ruff` 0 · `ruff format` 48 arquivos · `mypy` limpo (20 arquivos) |
+
+## Verificação de concorrência (antes/depois)
+
+- **ANTES** (correção): refresh do mesmo token em 2 threads → 4/10 iterações com
+  `[200, 200]` e **duas sessões ativas** (clonagem do token).
+- **DEPOIS**: 10/10 iterações com `[200, 401]` — um único vencedor e zero sessões
+  ativas residuais; logout/logout-all concorrentes não deixam sessão sobreviver.
 
 ## Limitações honestas
 
 - Rate limit em memória = 1 instância (documentado).
 - `alembic check` (drift) continua adiado até haver modelos SQLAlchemy.
-- Concorrência simultânea entre requests: E1.6.
+- Concorrência validada em `TestClient`/threads (Barrier); não sob rede real/multi-instância.
 - Recuperação de senha: E1.3 · SMTP real: E1.4 · Frontend: E1.5 · Exclusão de conta (LGPD): decisão D8.
 
 ## Pendências explícitas
