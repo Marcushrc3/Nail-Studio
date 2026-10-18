@@ -27,6 +27,7 @@ class TenantContext:
 
 
 _current_tenant: ContextVar[TenantContext | None] = ContextVar("current_tenant", default=None)
+_current_user_id: ContextVar[str | None] = ContextVar("current_user_id", default=None)
 
 
 def set_tenant_context(context: TenantContext) -> Token[TenantContext | None]:
@@ -36,7 +37,11 @@ def set_tenant_context(context: TenantContext) -> Token[TenantContext | None]:
 
 def reset_tenant_context(token: Token[TenantContext | None]) -> None:
     """Restaura o contexto anterior (chamar no fim do request)."""
-    _current_tenant.reset(token)
+    try:
+        _current_tenant.reset(token)
+    except ValueError:
+        # Mesmo caso de reset_user_context: contexto de execução diferente.
+        return
 
 
 def get_tenant_context() -> TenantContext:
@@ -44,6 +49,32 @@ def get_tenant_context() -> TenantContext:
     if context is None:
         raise TenantContextError("Nenhum contexto de tenant estabelecido para este request.")
     return context
+
+
+def get_tenant_context_or_none() -> TenantContext | None:
+    """Versão opcional usada pelo wiring transacional (db.py)."""
+    return _current_tenant.get()
+
+
+def set_user_context(user_id: str) -> Token[str | None]:
+    """Estabelece o id do usuário autenticado para a duração do request."""
+    return _current_user_id.set(user_id)
+
+
+def reset_user_context(token: Token[str | None]) -> None:
+    """Restaura o contexto de usuário anterior (chamar no fim do request)."""
+    try:
+        _current_user_id.reset(token)
+    except ValueError:
+        # Token criado em outro Context (ex.: limpeza de dependência executada
+        # no event loop, enquanto o valor foi setado no worker thread). O
+        # Context do worker é descartado ao fim do request, então não há vazamento.
+        return
+
+
+def get_user_id_or_none() -> str | None:
+    """Versão opcional usada pelo wiring transacional (db.py)."""
+    return _current_user_id.get()
 
 
 def require_tenant() -> TenantContext:

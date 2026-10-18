@@ -17,10 +17,14 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Migrations rodam com a role de migração; runtime usa database_url.
+config.set_main_option("sqlalchemy.url", settings.migration_database_url or settings.database_url)
 
-# E0: ainda não há modelos declarativos. O metadata vazio é intencional e
-# permite que `alembic check` valide que o banco não tem drift.
+# E0/E1.1: ainda não há modelos declarativos. O metadata vazio é intencional.
+# LIMITAÇÃO: `alembic check` (drift) só será significativo quando os modelos
+# SQLAlchemy existirem (E1.2+); com metadata vazio ele acusaria as tabelas
+# do banco como removidas. O ciclo upgrade/downgrade continua validado em
+# tests/db/test_migrations_cycle.py.
 target_metadata = MetaData()
 
 

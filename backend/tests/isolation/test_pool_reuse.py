@@ -17,6 +17,7 @@ HEADER_B = {SYNTHETIC_TENANT_HEADER: "pool-tenant-b"}
 
 def test_same_pooled_connection_serves_different_tenants_without_leak(
     single_connection_engine: Engine,
+    _probe_table: None,
 ) -> None:
     client = TestClient(build_app(single_connection_engine))
 

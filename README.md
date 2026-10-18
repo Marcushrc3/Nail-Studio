@@ -37,13 +37,18 @@ Copy-Item .env.example .env
 # 2. Subir o PostgreSQL (apenas o banco; frontend e backend rodam nativos)
 docker compose up -d db
 
-# 3. Backend (terminal 1)
+# 2.1 Bootstrap de roles/permissões do banco (idempotente; exige superusuário)
 cd backend
 uv sync
+uv run python scripts/bootstrap_db.py
+
+# 3. Aplicar migrations
 uv run alembic upgrade head
+
+# 4. Backend (terminal 1)
 uv run uvicorn app.main:app --reload --port 8000
 
-# 4. Frontend (terminal 2)
+# 5. Frontend (terminal 2)
 cd frontend
 pnpm install
 pnpm dev

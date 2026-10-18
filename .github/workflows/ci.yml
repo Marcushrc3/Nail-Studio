@@ -24,7 +24,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql+psycopg://nail_studio:nail_studio@localhost:5432/nail_studio
-      JWT_SECRET_KEY: ci-only-test-secret
+      JWT_SECRET_KEY: ci-only-test-secret-with-at-least-32-bytes
     defaults:
       run:
         working-directory: backend
@@ -35,6 +35,14 @@ jobs:
           version: "0.13.1"
       - name: Instalar dependências
         run: uv sync --frozen
+      - name: Bootstrap roles de banco
+        run: uv run python scripts/bootstrap_db.py
+        env:
+          BOOTSTRAP_DATABASE_URL: postgresql+psycopg://nail_studio:nail_studio@localhost:5432/nail_studio
+      - name: Migrations (Alembic)
+        run: uv run alembic upgrade head
+        env:
+          MIGRATION_DATABASE_URL: postgresql+psycopg://app_migration:app_migration_pw@localhost:5432/nail_studio
       - name: Lint (ruff)
         run: uv run ruff check .
       - name: Formatação (ruff format)

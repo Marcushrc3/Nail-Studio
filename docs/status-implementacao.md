@@ -1,9 +1,65 @@
-# Status de implementação — E0 (fundação técnica)
+# Status de implementação — E0 + E1.1 + E1.2
 
-**Data:** 2026-10-17 · **Estado:** E0 concluída e verificada localmente.
-Nenhuma funcionalidade de negócio foi implementada.
+**Data:** 2026-10-17 · **Estado:** E0, E1.1 e **E1.2 (núcleo de autenticação)** concluídas e testadas.
+Sem frontend ainda (E1.5).
 
-## Critérios de aceite da E0 — verificação
+## E1.2 — Núcleo de autenticação
+
+| Item | Estado | Evidência |
+|---|---|---|
+| Correções da auditoria (colunas sensíveis, PUBLIC, default privileges, role sem privilégios) | ✅ | migration `c20d386c8723` + `tests/db/test_db_privileges.py` |
+| JWT hardening (claims, iss/aud, iat, alg whitelist) | ✅ | `tests/test_security.py` (11 testes JWT) |
+| Signup atômico + verificação + login + refresh rotativo + reuso revoga família + logout/logout-all | ✅ | `tests/auth/test_auth_flows.py` |
+| Anti-enumeração (respostas uniformes, dummy hash) | ✅ | testes de duplicata/login desconhecido |
+| Rate limiting (slowapi) | ✅ | `tests/auth/test_rate_limit.py` |
+| FakeEmailProvider (sem SMTP real) | ✅ | `app/core/email.py` + testes |
+| Suíte completa | ✅ | **72 passed**, exit 0 (API testada como `app_runtime`) |
+| Gates | ✅ | `ruff` 0 · `ruff format --check` 46 arquivos · `mypy` limpo (20 arquivos) |
+
+## Limitações honestas
+
+- Rate limit em memória = 1 instância (documentado).
+- `alembic check` (drift) continua adiado até haver modelos SQLAlchemy.
+- Concorrência simultânea entre requests: E1.6.
+- Recuperação de senha: E1.3 · SMTP real: E1.4 · Frontend: E1.5 · Exclusão de conta (LGPD): decisão D8.
+
+## Pendências explícitas
+
+- E1.3: recuperação/redefinição de senha + reenvio de verificação.
+- E1.4: SMTP (Gmail) + templates.
+- E1.5: frontend de autenticação.
+- E1.6: concorrência + documentação final.
+
+---
+
+# Histórico (E0 + E1.1)
+
+## E1.1 — Modelo de dados, roles, migrations e RLS
+
+| Item | Estado | Evidência |
+|---|---|---|
+| Tabelas: `tenants`, `users`, `profiles`, `refresh_tokens`, `single_use_tokens`, `consent_records` (citext, FKs, índices, unique, timestamptz) | ✅ Implementado | migration `d09eb36d6b7d` |
+| Roles: `app_runtime` (API, sem superuser/BYPASSRLS), `app_migration` (Alembic), `app_functions` (NOLOGIN+BYPASSRLS, dona das definer) | ✅ Implementado e testado | `scripts/bootstrap_db.sql`; testes `tests/db/test_rls.py` (conectam como `app_runtime`) |
+| FORCE RLS + 12 políticas self-only | ✅ Implementado e testado | verificações via `pg_class`/`pg_policies` + testes |
+| Contexto transacional `SET LOCAL` sem vazamento no pool | ✅ Implementado e testado | `app/core/db.py` + `tests/db/test_transaction_context.py` (mesma conexão física, `pg_backend_pid`) |
+| Funções definer estreitas (login, refresh, single-use, signup) com grants mínimos | ✅ Implementado e testado | `tests/db/test_definer_functions.py` (executa como `app_runtime`) |
+| Ciclo upgrade → downgrade → upgrade em banco descartável + smoke estrutural | ✅ Implementado e testado | `tests/db/test_migrations_cycle.py` (7 tabelas, 12 políticas, 4 funções, versão head) |
+| Suíte completa | ✅ | **33 passed** (E0 + E1.1), exit 0 |
+| Gates | ✅ | `ruff check` 0 erros · `ruff format --check` 28 arquivos · `mypy app` limpo |
+
+## Limitações honestas (E1.1)
+
+- `alembic check` (drift) só passa a ser significativo com modelos SQLAlchemy (E1.2+); documentado no ADR 0004.
+- Concorrência simultânea entre requests: prevista para E1.6.
+- Não há endpoints de auth ainda; o cliente não pode escolher tenant (derivação via JWT na E1.2).
+
+## Pendências explícitas
+
+- Login, verificação de e-mail, recuperação de senha, rate limiting → **E1.2+**.
+- Exclusão de conta (LGPD) → decisão posterior (D8).
+- Frontend de auth → **E1.5**.
+
+## Critérios de aceite da E0 — verificação (histórico)
 
 | # | Critério | Estado | Evidência (executado em 2026-10-17) |
 |---|---|---|---|
